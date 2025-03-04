@@ -4,7 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Mapa con GPX y GPS</title>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <!-- <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" /> -->
+     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css"
+  integrity="sha512-xodZBNTC5n17Xt2atTPuE1HxjVMSvLVW9ocqUKLsCC5CXdbqCmblAshOMAS6/keqq/sMZMZ19scR4PsZChSR7A=="
+  crossorigin=""/>
+
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet-gpx/1.4.0/gpx.min.js"></script>
     <style>
@@ -31,11 +35,11 @@
             attribution: '&copy; OpenStreetMap contributors'
         }).addTo(map);
 
-        let route;
+        let route = [];
         let totalDistance = 0;
-        
-        // Cargar un archivo GPX (reemplaza 'ruta.gpx' con tu archivo real)
-        const gpx = new L.GPX('ruta.gpx', {
+
+        // Cargar el archivo GPX (reemplaza 'ruta.gpx' con tu archivo real)
+        const gpx = new L.GPX('test2.gpx', {
             async: true,
             marker_options: {
                 startIconUrl: 'https://leafletjs.com/examples/custom-icons/leaf-green.png',
@@ -44,9 +48,38 @@
             }
         }).on('loaded', function(e) {
             map.fitBounds(e.target.getBounds());
-            route = e.target.getLayers().flatMap(layer => layer.getLatLngs ? layer.getLatLngs() : []);
-            totalDistance = calculateTotalDistance(route);
-            document.getElementById('distance').textContent = totalDistance.toFixed(2);
+
+            // Imprimir las capas obtenidas para depurar
+            console.log("Capas obtenidas:", e.target.getLayers());
+
+            // Intentar acceder a la capa de la ruta
+            const layers = e.target.getLayers();
+            layers.forEach(layer => {
+                console.log("Tipo de capa:", layer);
+                
+                // Verificar si la capa es una Polyline
+                if (layer instanceof L.Polyline) {
+                    console.log("Ruta encontrada:", layer.getLatLngs());
+                    route = layer.getLatLngs();  // Guardamos las coordenadas de la ruta
+                    L.polyline(route, { color: 'blue' }).addTo(map);  // Dibujamos la ruta en el mapa
+                }
+
+                // Verificar si la capa es un FeatureGroup que contiene una Polyline
+                if (layer instanceof L.FeatureGroup) {
+                    layer.eachLayer(subLayer => {
+                        if (subLayer instanceof L.Polyline) {
+                            console.log("Ruta encontrada dentro de FeatureGroup:", subLayer.getLatLngs());
+                            route = subLayer.getLatLngs();
+                            L.polyline(route, { color: 'blue' }).addTo(map);  // Dibujamos la ruta en el mapa
+                        }
+                    });
+                }
+            });
+
+            if (route.length > 0) {
+                totalDistance = calculateTotalDistance(route);
+                document.getElementById('distance').textContent = totalDistance.toFixed(2);
+            }
         }).addTo(map);
 
         // Capturar la ubicación del usuario en tiempo real
@@ -56,12 +89,12 @@
             const { latitude, longitude, speed } = position.coords;
             userMarker.setLatLng([latitude, longitude]);
             map.setView([latitude, longitude], 15);
-            
+
             if (speed !== null) {
                 document.getElementById('speed').textContent = (speed * 3.6).toFixed(2); // Convertir m/s a km/h
             }
-            
-            if (route) {
+
+            if (route.length > 0) {
                 const remainingDistance = calculateRemainingDistance([latitude, longitude], route);
                 document.getElementById('distance').textContent = remainingDistance.toFixed(2);
             }
@@ -91,7 +124,7 @@
             let minDistance = Infinity;
             let index = 0;
             const userLatLng = L.latLng(userLocation[0], userLocation[1]);
-            
+
             for (let i = 0; i < route.length; i++) {
                 const dist = userLatLng.distanceTo(route[i]);
                 if (dist < minDistance) {

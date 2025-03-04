@@ -10,7 +10,7 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
 }).addTo(map);
 
 // Cargar un archivo GPX (reemplaza 'ruta.gpx' con tu archivo real)
-const gpx = new L.GPX('ruta.gpx', {
+const gpx = new L.GPX('test2.gpx', {
     async: true,
     marker_options: {
         startIconUrl: 'https://leafletjs.com/examples/custom-icons/leaf-green.png',
@@ -41,3 +41,4 @@ if (navigator.geolocation) {
 } else {
     alert('Tu navegador no soporta GPS');
 }
+
