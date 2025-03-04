@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mapa con GPX y GPS</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet-gpx/1.4.0/gpx.min.js"></script>
+    <style>
+        #map {
+            height: 500px;
+            width: 100%;
+        }
+        #info {
+            margin-top: 10px;
+            font-size: 18px;
+        }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+    <div id="info">
+        <p>Velocidad: <span id="speed">0</span> km/h</p>
+        <p>Distancia restante: <span id="distance">0</span> km</p>
+    </div>
+    <script>
+        // Crear el mapa
+        const map = L.map('map').setView([0, 0], 13);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; OpenStreetMap contributors'
+        }).addTo(map);
+
+        let route;
+        let totalDistance = 0;
+        
+        // Cargar un archivo GPX (reemplaza 'ruta.gpx' con tu archivo real)
+        const gpx = new L.GPX('ruta.gpx', {
+            async: true,
+            marker_options: {
+                startIconUrl: 'https://leafletjs.com/examples/custom-icons/leaf-green.png',
+                endIconUrl: 'https://leafletjs.com/examples/custom-icons/leaf-red.png',
+                shadowUrl: 'https://leafletjs.com/examples/custom-icons/leaf-shadow.png'
+            }
+        }).on('loaded', function(e) {
+            map.fitBounds(e.target.getBounds());
+            route = e.target.getLayers().flatMap(layer => layer.getLatLngs ? layer.getLatLngs() : []);
+            totalDistance = calculateTotalDistance(route);
+            document.getElementById('distance').textContent = totalDistance.toFixed(2);
+        }).addTo(map);
+
+        // Capturar la ubicación del usuario en tiempo real
+        const userMarker = L.marker([0, 0]).addTo(map);
+
+        function updateLocation(position) {
+            const { latitude, longitude, speed } = position.coords;
+            userMarker.setLatLng([latitude, longitude]);
+            map.setView([latitude, longitude], 15);
+            
+            if (speed !== null) {
+                document.getElementById('speed').textContent = (speed * 3.6).toFixed(2); // Convertir m/s a km/h
+            }
+            
+            if (route) {
+                const remainingDistance = calculateRemainingDistance([latitude, longitude], route);
+                document.getElementById('distance').textContent = remainingDistance.toFixed(2);
+            }
+        }
+
+        function errorHandler(error) {
+            console.error('Error obteniendo la ubicación:', error.message);
+        }
+
+        if (navigator.geolocation) {
+            navigator.geolocation.watchPosition(updateLocation, errorHandler, {
+                enableHighAccuracy: true
+            });
+        } else {
+            alert('Tu navegador no soporta GPS');
+        }
+
+        function calculateTotalDistance(points) {
+            let distance = 0;
+            for (let i = 0; i < points.length - 1; i++) {
+                distance += points[i].distanceTo(points[i + 1]) / 1000; // Convertir metros a km
+            }
+            return distance;
+        }
+
+        function calculateRemainingDistance(userLocation, route) {
+            let minDistance = Infinity;
+            let index = 0;
+            const userLatLng = L.latLng(userLocation[0], userLocation[1]);
+            
+            for (let i = 0; i < route.length; i++) {
+                const dist = userLatLng.distanceTo(route[i]);
+                if (dist < minDistance) {
+                    minDistance = dist;
+                    index = i;
+                }
+            }
+
+            let remainingDistance = 0;
+            for (let j = index; j < route.length - 1; j++) {
+                remainingDistance += route[j].distanceTo(route[j + 1]) / 1000; // Convertir metros a km
+            }
+            return remainingDistance;
+        }
+    </script>
+</body>
+</html>
