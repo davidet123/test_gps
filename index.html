@@ -24,21 +24,22 @@
         <p>Velocidad: <span id="speed">0</span> km/h</p>
         <p>Distancia total: <span id="total-distance">0</span> km</p>
         <p>Distancia restante: <span id="distance">0</span> km</p>
+        <p>Waypoints totales: <span id="waypoints-total">0</span></p>
+        <p>Waypoint actual: <span id="current-waypoint">0</span></p>
     </div>
     <script>
-
-      const nombreMapa = 'test5.gpx'
         // Crear el mapa
-        const map = L.map('map').setView([0, 0], 13);
+        const map = L.map('map').setView([0, 0], 18);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '&copy; OpenStreetMap contributors'
         }).addTo(map);
 
         let route = [];
         let totalDistance = 0;
+        let totalWaypoints = 0;
         
         // Cargar un archivo GPX (reemplaza 'ruta.gpx' con tu archivo real)
-        const gpx = new L.GPX(nombreMapa, {
+        const gpx = new L.GPX('test5.gpx', {
             async: true,
             marker_options: {
                 startIconUrl: 'https://leafletjs.com/examples/custom-icons/leaf-green.png',
@@ -47,9 +48,6 @@
             }
         }).on('loaded', function(e) {
             map.fitBounds(e.target.getBounds());
-            
-            // Ver qué capas devuelve
-            console.log("Capas obtenidas:", e.target.getLayers());
             
             // Obtener la ruta correctamente
             const layers = e.target.getLayers();
@@ -65,8 +63,10 @@
             
             if (route.length > 0) {
                 totalDistance = calculateTotalDistance(route);
+                totalWaypoints = route.length;
                 document.getElementById('total-distance').textContent = totalDistance.toFixed(2);
                 document.getElementById('distance').textContent = totalDistance.toFixed(2);
+                document.getElementById('waypoints-total').textContent = totalWaypoints;
             }
         }).addTo(map);
 
@@ -76,15 +76,16 @@
         function updateLocation(position) {
             const { latitude, longitude, speed } = position.coords;
             userMarker.setLatLng([latitude, longitude]);
-            map.setView([latitude, longitude], 15);
+            map.setView([latitude, longitude], 18);
             
             if (speed !== null) {
                 document.getElementById('speed').textContent = (speed * 3.6).toFixed(2); // Convertir m/s a km/h
             }
             
             if (route.length > 0) {
-                const remainingDistance = calculateRemainingDistance([latitude, longitude], route);
+                const { remainingDistance, closestIndex } = calculateRemainingDistance([latitude, longitude], route);
                 document.getElementById('distance').textContent = remainingDistance.toFixed(2);
+                document.getElementById('current-waypoint').textContent = closestIndex + 1; // +1 para mostrar en formato 1-based
             }
         }
 
@@ -125,7 +126,7 @@
             for (let j = index; j < route.length - 1; j++) {
                 remainingDistance += route[j].distanceTo(route[j + 1]) / 1000; // Convertir metros a km
             }
-            return remainingDistance;
+            return { remainingDistance, closestIndex: index };
         }
     </script>
 </body>
